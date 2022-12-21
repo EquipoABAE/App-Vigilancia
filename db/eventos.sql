@@ -3,9 +3,15 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
+
 -- Tiempo de generación: 21-12-2022 a las 02:15:16
 -- Versión del servidor: 10.4.25-MariaDB
 -- Versión de PHP: 8.1.10
+
+-- Tiempo de generación: 17-12-2022 a las 23:17:07
+-- Versión del servidor: 10.4.27-MariaDB
+-- Versión de PHP: 8.1.12
+
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -24,6 +30,7 @@ SET time_zone = "+00:00";
 -- --------------------------------------------------------
 
 --
+
 -- Estructura de tabla para la tabla `papelera`
 --
 
@@ -124,6 +131,19 @@ INSERT INTO `video` (`id`, `nombre`, `fecha`, `ruta_video`, `ruta_miniatura`, `c
 (62, 'Cam1 2022_12_20  21_10_45.mp4', '2022-12-20', 'c:\\Sistema_de_vigilancia_ABAE_Puerto_Cabello\\videos\\Cam1\\2022\\Dec\\20\\Cam1 2022_12_20  21_10_45.mp4', 'c:\\Sistema_de_vigilancia_ABAE_Puerto_Cabello\\thumbnail\\Cam1\\2022\\Dec\\20\\Cam1 2022_12_20  21_10_45.jpg', '', '00:00:06'),
 (63, 'Cam1 2022_12_20  21_12_56.mp4', '2022-12-20', 'c:\\Sistema_de_vigilancia_ABAE_Puerto_Cabello\\videos\\Cam1\\2022\\Dec\\20\\Cam1 2022_12_20  21_12_56.mp4', 'c:\\Sistema_de_vigilancia_ABAE_Puerto_Cabello\\thumbnail\\Cam1\\2022\\Dec\\20\\Cam1 2022_12_20  21_12_56.jpg', '', '00:00:05');
 
+-- Estructura de tabla para la tabla `registro`
+--
+
+CREATE TABLE `registro` (
+  `ID` int(11) NOT NULL,
+  `NOMBRE` text NOT NULL,
+  `FECHA` date NOT NULL,
+  `DIREC_VIDEO` text NOT NULL,
+  `DIREC_MINI` text NOT NULL,
+  `COMEN` text NOT NULL,
+  `DURACION` time NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
 --
 -- Índices para tablas volcadas
 --
@@ -140,11 +160,18 @@ ALTER TABLE `papelera`
 ALTER TABLE `video`
   ADD PRIMARY KEY (`id`);
 
+-- Indices de la tabla `registro`
+--
+ALTER TABLE `registro`
+  ADD PRIMARY KEY (`ID`);
+
+
 --
 -- AUTO_INCREMENT de las tablas volcadas
 --
 
 --
+
 -- AUTO_INCREMENT de la tabla `papelera`
 --
 ALTER TABLE `papelera`
@@ -155,6 +182,12 @@ ALTER TABLE `papelera`
 --
 ALTER TABLE `video`
   MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=64;
+
+-- AUTO_INCREMENT de la tabla `registro`
+--
+ALTER TABLE `registro`
+  MODIFY `ID` int(11) NOT NULL AUTO_INCREMENT;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
