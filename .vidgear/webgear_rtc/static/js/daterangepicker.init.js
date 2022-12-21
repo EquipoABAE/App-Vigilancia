@@ -39,8 +39,8 @@ $(function() {
     $('#reportrange span').html(start.format('MMMM D, YYYY') + ' - ' + end.format('MMMM D, YYYY') + ' <b>(' + cualitativeTime + ')</b>');
 
     // Se guarda el rango (fecha inicial y fecha final) en sus respectivos inputs
-    $('#dateStart').attr("value", start.format('YYYY-MM-DD'));
-    $('#dateEnd').attr("value", end.format('YYYY-MM-DD'));
+    $('#rangoDateStart').attr("value", start.format('YYYY-MM-DD'));
+    $('#rangoDateEnd').attr("value", end.format('YYYY-MM-DD'));
   }
 
   // inicailizacion de la libreria DateRangePicker con las opciones y configuraciones requeridas

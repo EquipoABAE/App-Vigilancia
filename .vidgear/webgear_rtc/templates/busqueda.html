@@ -1,87 +1,91 @@
-<!-- Página para mostrar los resultados de la busqueda -->
+<!-- PÁGINA PARA MOSTRAR LOS RESULTADOS DE UNA BUSQUEDA -->
 {% extends "baseOndemand.html" %}
-{% block container %}
-<div class="row g-5 mt-5 justify-content-center">
-  <h3>Resultados de Busqueda ({{ total_videos }})</h3>
-  <!-- mostrar el numero total de videos en una sola pagina -->
-  {% if total_videos|int() <= videos_x_pagina|int() %}
-    {% for _ in range(total_videos|int()) %}
-    <div class="col-sm-6 col-md-4 col-lg-3 col-xl-3">
-      <div class="card bg-dark text-white">
-        <a href="{{ url_for('video_streaming') }}?video={{ nombre_video }}" class="btn-video" data-bs-toggle="modal" data-bs-target="#videoModal">
-          <img src="{{ url_for('static', path='img/miniatura.png') }}" class="card-img" alt="Miniatura de grabacion">
-          <div class="card-img-overlay d-flex flex-row justify-content-between">
-            <h5 class="card-title">2022-11-15</h5>
-            <p class="card-text align-self-end">2:18</p>
-          </div>
-          <div class="card-img-overlay d-flex justify-content-center align-items-center">
-            <div class="fig-play d-flex justify-content-center align-items-center">
-              <div class="fig-play__bg-play"></div>
-            </div>
-          </div>
-        </a>
-      </div>
-    </div>
-    {% endfor %}
+
+{% block title %}Busqueda || VideoOnDemand{% endblock %}
+
+{% block modal_controls %}
+  {% if tipo == "Administrador" %}
+    <a href="#" class="btn btn-primary" id="descargar" data-url="{{ url_for('video_download') }}">Descargar</a>
+    <a href="#" class="btn btn-danger" id="mover_a_papelera" data-url="{{ url_for('mover_a_papelera') }}">Mover a papelera</a>
   {% endif %}
-  <!-- ----------------------------------------------------------------------- -->
-  <!-- Mostrar el numero de videos por pagina definido -->
-  {% if total_videos|int() >= videos_x_pagina|int() and request.query_params['pagina']|int() != total_paginas|int() %}
-    {% for _ in range(videos_x_pagina|int()) %}
-    <div class="col-sm-6 col-md-4 col-lg-3 col-xl-3">
-      <div class="card bg-dark text-white">
-        <a href="{{ url_for('video_streaming') }}?video={{ nombre_video }}" class="btn-video" data-bs-toggle="modal" data-bs-target="#videoModal">
-          <img src="{{ url_for('static', path='img/miniatura.png') }}" class="card-img" alt="Miniatura de grabacion">
-          <div class="card-img-overlay d-flex flex-row justify-content-between">
-            <h5 class="card-title">2022-11-15</h5>
-            <p class="card-text align-self-end">2:18</p>
-          </div>
-          <div class="card-img-overlay d-flex justify-content-center align-items-center">
-            <div class="fig-play d-flex justify-content-center align-items-center">
-              <div class="fig-play__bg-play"></div>
-            </div>
-          </div>
-        </a>
-      </div>
-    </div>
-    {% endfor %}
-  {% endif %}
-  <!-- ----------------------------------------------------------------------- -->
-  <!-- Mostrar ultima pagina con los videos restantes -->
-  {% if total_videos|int() >= videos_x_pagina|int() and request.query_params['pagina']|int() == total_paginas|int() %}
-    {% for _ in range(total_videos - (videos_x_pagina * total_paginas_b)) %}
-    <div class="col-sm-6 col-md-4 col-lg-3 col-xl-3">
-      <div class="card bg-dark text-white">
-        <a href="{{ url_for('video_streaming') }}?video={{ nombre_video }}" class="btn-video" data-bs-toggle="modal" data-bs-target="#videoModal">
-          <img src="{{ url_for('static', path='img/miniatura.png') }}" class="card-img" alt="Miniatura de grabacion">
-          <div class="card-img-overlay d-flex flex-row justify-content-between">
-            <h5 class="card-title">2022-11-15</h5>
-            <p class="card-text align-self-end">2:18</p>
-          </div>
-          <div class="card-img-overlay d-flex justify-content-center align-items-center">
-            <div class="fig-play d-flex justify-content-center align-items-center">
-              <div class="fig-play__bg-play"></div>
-            </div>
-          </div>
-        </a>
-      </div>
-    </div>
-    {% endfor %}
-  {% endif %}
-  
-  <!-- PAGINACION DE BOOTSTRAP -->
-    <nav aria-label="Page navigation example">
-      <ul class="pagination">
-        <li class="page-item {% if request.query_params['pagina']|int() <= 1|int() %}disabled{% endif %}"><a class="page-link" href="{{ url_for('busqueda') }}?pagina={{ request.query_params['pagina']|int() - 1|int() }}">Anterior</a></li>
-
-        {% for i in range(total_paginas) %}
-
-          <li class="page-item {% if request.query_params['pagina']|int() == i+1|int() %}active{% endif %}"><a class="page-link" href="{{ url_for('busqueda') }}?pagina={{i+1}}">{{i+1}}</a></li>
-
-        {% endfor %}
-
-        <li class="page-item {% if request.query_params['pagina']|int() >= total_paginas|int() %}disabled{% endif %}"><a class="page-link" href="{{ url_for('busqueda') }}?pagina={{ request.query_params['pagina']|int() + 1|int() }}">Siguiente</a></li>
-      </ul>
-    </nav>
-  </div>
 {% endblock %}
+
+<!-- BLOQUE DE CONTENIDO PRINCIPAL -->
+{% block container %}
+
+<div class="row g-5 mt-5 justify-content-center">
+<!-- SI EL NUMERO DE PAGINAS ES MAYOR A 0 (SE ENCONTRARON RESULTADOS) -->
+  {% if paginator.count|int > 0 %}
+  <div class="d-flex flex-column">
+    <h3>Resultados de Busqueda ({{ paginator.count }})</h3>
+    <h4><em>{{ fecha_inicial}} / {{ fecha_final }}</em></h4>
+  </div>
+  <!-- SI EL NUMERO DE PAGINA ACTUAL ES DISTINTO DE NUMERO DE PAGINAS(ULTIMA PAGINA) -->
+  {% if page.number|int != paginator.num_pages|int  %}
+    <!-- MOSTRAR LOS RESULTADOS EN EL RANGO PREESTABLECIDO(videos_x_pagina) -->
+    {% for i in range( ((page.number - 1) * videos_x_pagina), (page.number * videos_x_pagina) ) %}
+    <div class="col-sm-6 col-md-4 col-lg-3 col-xl-3">
+      <div class="card bg-dark text-white">
+        <a href="{{ url_for('video_streaming') }}?video={{ videos[i][0] }}" class="btn-video" data-bs-toggle="modal" data-bs-target="#videoModal" data-fecha="{{ videos[i][1] }}" data-id="{{ videos[i][0] }}" data-page="busqueda" data-pagenumber="{{ page.number }}">
+          <img src="{{ url_for('image_response') }}?image={{ videos[i][0] }}" class="card-img" alt="{{ videos[i][1] }}">
+          <div class="card-img-overlay d-flex flex-row justify-content-end">
+            <p class="card-text align-self-end">{{ videos[i][6] }}</p>
+          </div>
+          <div class="card-img-overlay d-flex justify-content-center align-items-center">
+            <div class="fig-play d-flex justify-content-center align-items-center">
+              <div class="fig-play__bg-play"></div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  <!-- EN CASO CONTRARIO (PAGINA ACTUAL ES IGUAL A ULTIMA PAGINA) -->
+  {% else %}
+    <!-- MOSTRAR LOS RESULTADOS RESTANTES SEGUN EL RANGO CALCULADO -->
+    {% for i in range( (videos_x_pagina * (paginator.num_pages - 1)) , (paginator.count) )  %}
+      <div class="col-sm-6 col-md-4 col-lg-3 col-xl-3">
+        <div class="card bg-dark text-white">
+          <a href="{{ url_for('video_streaming') }}?video={{ videos[i][0] }}" class="btn-video" data-bs-toggle="modal" data-bs-target="#videoModal" data-fecha="{{ videos[i][1] }}" data-id="{{ videos[i][0] }}" data-page="busqueda" data-pagenumber="{{ page.number }}">
+            <img src="{{ url_for('image_response') }}?image={{ videos[i][0] }}" class="card-img" alt="{{ videos[i][1] }}">
+            <div class="card-img-overlay d-flex flex-row justify-content-end">
+              <p class="card-text align-self-end">{{ videos[i][6] }}</p>
+            </div>
+            <div class="card-img-overlay d-flex justify-content-center align-items-center">
+              <div class="fig-play d-flex justify-content-center align-items-center">
+                <div class="fig-play__bg-play"></div>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+      {% endfor %}
+    {% endif %}
+  <!-- ----------------------------------------------------------------------- -->
+
+  <!-- PAGINACION DE BOOTSTRAP -->
+        <nav aria-label="Page navigation">
+          <ul class="pagination row g-0">
+            <li class="page-item {% if not page.has_previous %}disabled{% endif %} col-auto"><a class="page-link" href="?page={{ page.number - 1 }}">Anterior</a></li>
+  
+              {% for i in range(1, paginator.num_pages + 1) %}
+  
+                <li class="page-item {% if i|int == page.number|int %}active{% endif %} col-auto"><a class="page-link" href="?page={{ i }}">{{ i }}</a></li>
+  
+              {% endfor %}
+  
+            <li class="page-item {% if not page.has_next %}disabled{% endif %} col-auto"><a class="page-link" href="?page={{ page.number + 1 }}">Siguiente</a></li>
+          </ul>
+        </nav>
+<!-- EN CASO CONTRARIO (NO SE ENCONTRARON RESULTADOS) -->
+    {% else %}
+    <div class="d-flex flex-column">
+      <h3>No Se Encontraron Resultados</h3>
+      <h4><em>{{ fecha_inicial}} / {{ fecha_final }}</em></h4>
+    </div>
+    {% endif %}
+
+  </div>
+
+{% endblock %}
+

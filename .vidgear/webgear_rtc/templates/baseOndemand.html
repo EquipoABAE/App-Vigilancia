@@ -17,6 +17,10 @@
           <a class="js-arrow" href="{{url_for('dashboard')}}">
               <i class="fas fa-users"></i>Usuarios</a>
       </li>
+      <li class="has-sub">
+        <a class="js-arrow" href="{{url_for('papelera')}}">
+            <i class="fas fa-trash"></i>Papelera de Videos</a>
+    </li>
       {% endif %}
   </ul>
 </nav>
@@ -25,84 +29,70 @@
     {{name}}
 {% endblock %}
 {% block body %}
-<div class="container2 py-5 px-5" id="container2">
-    <div class="row my-5 mb-5">
-        <div class="col-sm-8 col-md-6 col-lg-6 col-xl-8 ms-auto me-auto">
-          <form action="{{ url_for('consulta') }}" method="post">
-              <div class="row position-relative">
-                  
-                  <div id="rangeContainer" class="col-sm-12 col-md-12 col-lg-12 col-xl-12 form-group">
-                    <label for="reportrange" class="ms-5"><h5>Buscar por Rango de Fecha</h5></label>
-                    <div id="reportrange" class="form-control border-3 border-top-0 border-start-0 border-end-0 border-primary rounded-0">
-                        <i class="fa fa-calendar"></i>&nbsp;
-                        <span></span> <i class="fa fa-caret-down"></i>
-                      <input id="dateStart" name="dateStart" type="date" hidden>
-                      <input id="dateEnd" name="dateEnd" type="date" hidden>
-                    </div>
-                  </div>
-                  
-                  <div id="mesContainer" class="col-sm-12 col-md-12 col-lg-12 col-xl-12 form-group">
-                    <label for="mes" class="ms-5"><h5>Buscar por Año y Mes</h5></label>
-                    <input id="mes" type="month" class="form-control border-3 border-top-0 border-start-0 border-end-0 border-primary rounded-0" aria-label="Default select example" name="mes">
-                  </div>
+<div class="py-5 px-5" id="container">
 
-                    <div class="form-check form-switch form-group position-absolute top-0 ms-3">
-                      <input class="form-check-input" type="checkbox" role="switch" id="flexSwitchCheckChecked" checked data-bs-toggle="tooltip" data-bs-html="true" title="" checked>
-                    </div>
+  <!-- FORMULARIOS DE FECHAS PARA BUSCAR VIDEOS -->
 
-                
-                <div class="form-group mt-3 text-center">
-                    <!-- <button class="btn btn-success btn-primary" type="submit">Enviar datos -- btn</button> -->
-                    <a class="btn btn-primary" href="{{ url_for('busqueda') }}?pagina=1">Buscar Grabaciones</a>
+  <div class="row my-5 mb-5">
+      <div class="col-sm-8 col-md-6 col-lg-6 col-xl-8 ms-auto me-auto">
+        <form action="{{ url_for('busqueda') }}" method="post">
+            <div class="row position-relative">
+                <!-- FORMULARIO DE RANGO DE FECHAS -->
+                <div id="rangeContainer" class="col-sm-12 col-md-12 col-lg-12 col-xl-12 form-group">
+                  <label for="reportrange" class="ms-5"><h5>Buscar por Rango de Fecha</h5></label>
+                  <div id="reportrange" class="form-control border-3 border-top-0 border-start-0 border-end-0 border-primary rounded-0">
+                      <i class="fa fa-calendar"></i>&nbsp;
+                      <span></span> <i class="fa fa-caret-down"></i>
+                    <input id="rangoDateStart" name="rangoDateStart" type="date" hidden>
+                    <input id="rangoDateEnd" name="rangoDateEnd" type="date" hidden>
+                  </div>
                 </div>
-            </div>
-          </form>
-        </div>
-    </div>
+                <!-- FORMULARIO DE AÑO-MES -->
+                <div id="mesContainer" class="col-sm-12 col-md-12 col-lg-12 col-xl-12 form-group">
+                  <label for="mes" class="ms-5"><h5>Buscar por Año y Mes</h5></label>
+                  <input id="mes" type="month" class="form-control border-3 border-top-0 border-start-0 border-end-0 border-primary rounded-0" aria-label="Default select example" name="mes">
+                  <input id="mesDateStart" name="mesDateStart" type="date" hidden>
+                  <input id="mesDateEnd" name="mesDateEnd" type="date" hidden>
+                </div>
+                <!-- CHECKBOX PARA LA SELECCION DE FORMULARIOS -->
+                <div class="form-check form-switch form-group position-absolute top-0 ms-3">
+                  <input class="form-check-input" type="checkbox" role="switch" id="inputSwitch" name="inputSwitch" checked data-bs-toggle="tooltip" data-bs-html="true" title="" checked>
+                </div>
+                <!-- BOTON PARA REALIZAR BUSQUEDA -->
+                <div class="form-group mt-3 text-center col-sm-12 col-md-12 col-lg-12 col-xl-12">
+                  <button class="btn btn-primary" type="submit">Buscar grabaciones</button>
+                </div>
+          </div>
+        </form>
+      </div>
+  </div>
 
-    {% block container %}
-    {% endblock %}
+  <!-- BLOQUE DE CONTENIDO CON LOS RESULTADOS DE BUSQUEDA -->
 
-      <!-- Modal -->
+  {% block container %}
+  {% endblock %}
 
-  <div class="modal fade" id="videoModal" tabindex="-1" aria-labelledby="exampleModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-md modal-lg">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="exampleModalLabel">2022-05-12</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <video id="video2" class="video-js video vjs-16-9 vjs-big-play-centered" controlsList="nodownload">
-            <source src="#" type="video/mp4">
-        </video>
-        </div>
-        <div class="modal-footer w-100">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
-        </div>
+    <!-- MODAL PARA VER VIDEO -->
+<div class="modal fade" id="videoModal" tabindex="-1" aria-labelledby="ModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-md modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ModalLabel"></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+      <video id="video-modal" class="video-js video-modal vjs-16-9 vjs-big-play-centered" controlsList="nodownload">
+        <source src="#" type='video/mp4'>
+      </video>
+      </div>
+      <div class="modal-footer w-100">
+        {% block modal_controls %}
+        {% endblock %}
       </div>
     </div>
   </div>
-
 </div>
 
-<!-- Script para pausar video con la tecla espacio -->
-<!-- <script>
-        var body = document.body;
-        var video = document.querySelector("#sourceVideo");
-
-        var space = false;
-
-        body.onkeydown = function(e){
-            if (e.keyCode == 32 && !space) {
-                space = true;
-                video.pause();
-            }else if(e.keyCode == 32 && space){
-                space = false;
-                video.play();
-            }
-        }
-    </script> -->
-
+</div>
 
 {% endblock %}

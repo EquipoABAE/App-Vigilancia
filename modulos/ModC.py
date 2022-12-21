@@ -1,5 +1,5 @@
 from typing import IO, Generator
-
+""" Funcion que lee y devuelve los bytes correspondientes del video """
 def ranged \
         (
             file: IO[bytes],
