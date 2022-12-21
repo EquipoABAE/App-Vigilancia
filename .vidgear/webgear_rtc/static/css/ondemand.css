@@ -1,4 +1,4 @@
-/* ------- CAROUSEL -------- */
+/* ------- CAROUSEL DE VIDEOS RECIENTES -------- */
 
 .carousel__container{
     position:relative;
@@ -34,8 +34,9 @@
     overflow: hidden;
 }
 
-/* --------- BOTON PLAY ---------- */
+/* --------- ESTILOS PARA ICONO DE PLAY EN LA MINIATURA DEL VIDEO ---------- */
 
+/* --------- BOTON PLAY ---------- */
 .fig-play {
     background: #eeeeee55;
     width: 65px;
@@ -54,9 +55,6 @@
     background: #ffffff99;
     clip-path: polygon(0 0, 0 100%, 100% 50%);
 }
-
-
-/* --------- VIDEO STYLES ---------- */
 
 /* BOTON POSTER DE VIDEO */
 .btn-video {

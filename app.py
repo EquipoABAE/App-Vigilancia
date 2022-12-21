@@ -1,5 +1,6 @@
 # Importación de las librerias principales
-from starlette.responses import RedirectResponse, Response, PlainTextResponse, StreamingResponse
+from starlette.responses import RedirectResponse, Response, StreamingResponse, FileResponse
+from starlette_core.paginator import Paginator
 from starlette.templating import Jinja2Templates
 from vidgear.gears.asyncio import WebGear_RTC
 from starlette.requests import Request
@@ -11,6 +12,8 @@ import math
 import os
 #Modulos del Sistema
 from modulos import ModC
+#Funciones de la Base de Datos "eventos"
+from modulos.BD_MobB import lectura_intervalo_fechas, lectura_mas_recientes, insertar_video, lectura_id, insertar_video_en_papelera, eliminar_video_id, lectura_total_de_papelera, lectura_papelera_id, eliminar_video_de_papelera
 #Funciones de la Base de Datos "usuarios"
 from usuarios_db.db import get_all_usuarios, inicio_session, crear_usuario, get_usuario_by_id, update_usuario, delete_usuario
 #Funciones para las Sesiones
@@ -19,7 +22,10 @@ from starsessions.session import regenerate_session_id
 from starlette.middleware import Middleware
 #Variable que guardará el directorio de los archivos html
 template = Jinja2Templates(directory=os.getcwd()+"\\.vidgear\\webgear_rtc\\templates")
-VIDEO_PATH = os.getcwd()+'\\.vidgear\\webgear_rtc\\static\\video\\'
+# VARIABLES GLOBALES PARA LA BUSQUEDA DE VIDEOS
+videos = None
+fecha_inicial = None
+fecha_final = None
 #Clase que recibirá las fuentes de video para procesarlas 
 class Custom_Stream_Class:
     #Función para inicializar las fuentes de video
@@ -297,59 +303,159 @@ async def camaras(request:Request)->Response:
     context = {"request": request, "name": name, "tipo": tipo}
     """ Se renderiza página asociada a las cámaras """
     return template.TemplateResponse("index.html", context)
-""" Funcion para el video Ondemand"""
+""" 
+                FUNCIONES PARA VIDEO ONDEMAND 
+"""
+""" Funcion para realizar el streaming de video """
 async def video_streaming(request: Request) -> StreamingResponse:
-    path = Path(VIDEO_PATH + request.query_params['video'])
-    print(request.query_params['video'])
+    """ Se toma primero como parametro el id del video para obtener su informacion de la base de datos """
+    """ En caso de que id venga de la pagina de busqueda u ondemand """
+    try:
+        id = request.query_params['video']
+        video = lectura_id(id)
+    #""" En caso de que el id venga de la pagina de papelera """
+    except KeyError:
+        id = request.query_params['video_papelera']
+        video = lectura_papelera_id(id)
+    #""" Se obtiene el directorio o ruta del video """
+    path = video[3]
+    """ Se pasa la ruta como parametro para instanciar un objeto de la clase pathlib """
+    path = Path(path)
+    """ Se abre el archivo de video con la ruta especificada en como rb[read binary] lectura en binario lo que devolvera bytes sin decodificar """
     file = path.open('rb')
+    """ Se guarga el numero de bytes que conforman el video [tamaño del video en bytes] """
     file_size = path.stat().st_size
-
+    """ El Range header de solicitud HTTP indica la parte de un documento que el servidor debe devolver. """
     content_range = request.headers.get('range')
-
+    """ Se reasigna el tamaño del archivo a la varibale content length """
     content_length = file_size
+    """ codigo de estatus para la cabecera """
     status_code = 200
+    """ Diccionario en donde se guardara el Content-Range para la cabecera de la response [respuesta] """
     headers = {}
-
+    """ Si content_range no esta vacia """
     if content_range is not None:
+        """ Se formatea el content_range """
         content_range = content_range.strip().lower()
-
-        content_ranges = content_range.split('=')[-1]
-
-        range_start, range_end, *_ = map(str.strip, (content_ranges + '-').split('-'))
-
+        """ FORMATO DE UN HTTP RANGE: <unit>=<range-start>-<range-end> """
+        content_ranges = content_range.split('=')[-1] # Salida: <range-start>-<range-end>
+        """ Se inicializan los rangos """
+        range_start, range_end, *_ = map(str.strip, (content_ranges + '-').split('-')) # Salida: range_start=<range-start>, range_end=<range-end>
+        """ Calculo dinamico de los rangos """
         range_start = max(0, int(range_start)) if range_start else 0
         range_end   = min(file_size - 1, int(range_end)) if range_end else file_size - 1
-
+        """ Calculo dinamico del peso del archivo [lo que queda por cargar] """
         content_length = (range_end - range_start) + 1
-
+        """ Lectura dinamica del archivo """
         file = ModC.ranged(file, start = range_start, end = range_end + 1)
-
+        """ Codigo de respuesta 206 Partial content - Significa que esta recibiendo trozos de contenido """
         status_code = 206
-
-        headers['Content-Range'] = f'bytes {range_start}-{range_end}/{file_size}'
-
+        """ Formateando y asignando valores a Content-Range para pasarlo como respuesta en la cabecera """
+        headers['Content-Range'] = f'bytes {range_start}-{range_end}/{file_size}' # Content-Range formato: <unit> <range-start>-<range-end>/<size>
+    """ Preparando respuesta """
     response = StreamingResponse \
     (
         file,
         media_type = 'video/mp4',
         status_code = status_code,
     )
-
+    """ Actualizacion de cabeceras """
     response.headers.update \
     ({
         'Accept-Ranges': 'bytes',
         'Content-Length': str(content_length),
         **headers,
     })
-
     return response
+
+""" Funcion para retornar imagen jpg (miniatura de video) """
+async def image_response(request: Request):
+    """ Se obtiene el id del video por el metodo GET """
+    id = request.query_params['image']
+    """ Se consulta la base de datos eventos por el id """
+    image = lectura_id(id)
+    """ Se obtiene el path o ruta de la imagen correspondiente al video """
+    path = image[4]
+    """ Se retorna un response con la imagen """
+    return FileResponse(path, media_type="image/jpg")
+
+""" Funcion para descargar video """
+async def video_download(request: Request):
+    """ Se obtiene el id del video por el metodo GET """
+    id = request.query_params['download']
+    """ Se consulta la base de datos eventos tabla video por el id """
+    video = lectura_id(id)
+    """ Se obtiene el path o ruta del video """
+    path = video[3]
+    """ Se retorna con FileResponse el archivo de video """
+    return FileResponse(path, media_type="image/jpg", filename=video[1])
+
+""" Funcion para mover video a la papelera """
+async def mover_a_papelera(request: Request):
+    """ Se especifica el uso de variables globales dentro de la funcion """
+    global fecha_inicial
+    global fecha_final
+    global videos
+
+    """ Se obtiene el id del video por el metodo GET """
+    id = request.query_params['mover_a_papelera']
+    """ Se obtiene el origen del request por el metodo GET """
+    page_request_origin = request.query_params['page']
+    """ Se consulta a la base de datos por eventos por el id """
+    video = lectura_id(id)
+    """ Se insertan los datos del registro del video de la tabla videos a la tabla papelera de la base de datos eventos """
+    insertar_video_en_papelera(video[1], video[2], video[3], video[4], video[5], video[6])
+    """ Se elimina el registro del video por id de la tabla video de la base de datos eventos """
+    eliminar_video_id(id)
+    """ Se comprueba desde que seccion se realizo el request para realizar una redireccion hacia la misma pagina """
+    if page_request_origin == 'busqueda':
+        page_number = request.query_params['page_number']
+        videos = lectura_intervalo_fechas(fecha_inicial, fecha_final)
+        return RedirectResponse(request.url_for('busqueda')+'?page='+page_number, status_code=303)
+    else:
+        return RedirectResponse(request.url_for('ondemand'), status_code=303)
+
+""" Funcion para eliminar de forma definitiva un video [eliminarlo desde la papelera] """
+""" Esta funcion elimina tambien los archivos fisicamente de la maquina servidor """
+async def eliminar_video(request: Request):
+    """ Se recibe el id del video con el metodo GET """
+    id = request.query_params['video_papelera']
+    """ Se hace la consulta de la base de datos tabla papelera por el id """
+    video = lectura_papelera_id(id)
+    """ Se inicializan las variables que seran las rutas del video y de la imagen del video """
+    path_video = video[3]
+    path_image = video[4]
+    """ Se comprueba la existencia de los archivos """
+    if(os.path.exists(path_video) and os.path.exists(path_image)):
+        """ Se eliminan los archivos de la maquina para luego eliminarlos de la tabla papelera de la base de datos eventos """
+        try:
+            os.remove(path_video)
+            os.remove(path_image)
+            eliminar_video_de_papelera(id)
+        except:
+            print("Ha ocurrido un problema al intentar elminar un elemento de video.")
+    return RedirectResponse(request.url_for('papelera'), status_code=303)
+
+""" Funcion para restaurar video desde la papelera """
+async def restaurar_video(request: Request):
+    """ Se obtiene el id del video por el metodo GET """
+    id = request.query_params['video_papelera']
+    """ Se hace la consulta a la base de datos eventos tabla papelera por el id """ 
+    video = lectura_papelera_id(id)
+    """ Se insertan los datos del video nuevamente en la tabla video, de esta forma ya estara 'restaurado' el video """
+    insertar_video(video[1], video[2], video[3], video[4], video[5], video[6])
+    """ Se elimina el video de la base de datos eventos tabla papelera """
+    eliminar_video_de_papelera(id)
+    return RedirectResponse(request.url_for('papelera'), status_code=303)
+
 """Función para renderizar la pagína que muestra el buscador de videos"""
 async def ondemand(request:Request)->Response:
     """Variables para recuperar información del usuario que inició sesión"""
+    global videos
+    videos = lectura_mas_recientes()
     name = request.session.get("fullname")
     tipo = request.session.get("tipo_de_acceso")
-    nombre_video = 'Bola dragon.mp4'
-    context = {"request": request, "name": name, "tipo": tipo, "nombre_video": nombre_video}
+    context = {"request": request, "name": name, "tipo": tipo, "videos": videos}
     """Se renderiza página asociada al buscador de videos"""
     return template.TemplateResponse("ondemand.html", context)
 """Función para renderizar la pagína asociada a la busqueda"""
@@ -357,22 +463,47 @@ async def busqueda(request: Request)->Response:
     """Variables para recuperar información del usuario que inició sesión"""
     name = request.session.get("fullname")
     tipo = request.session.get("tipo_de_acceso")
-    """Variables para guardar la paginación"""
-    videos_x_pagina = 20
-    total_videos = 81
-    total_paginas = int(math.ceil(total_videos/videos_x_pagina))
-    total_paginas_b = int(total_videos/videos_x_pagina)
-    nombre_video = 'Bola dragon.mp4'
+    """ Si es POST la peticion enviada se reciben los datos y se guardan """
+    if request.method == 'POST':
+        """ Se modifican las variables globales para guardar los resultados de la busqueda de forma temporal """
+        global videos
+        global fecha_inicial
+        global fecha_final 
+        dates = await request.form()
+        try:
+            """ Caso en que inputSwitch esta activado """
+            """ Se toma el rango de fecha del formulario formulario de rango de fechas """
+            input_switch = dates['inputSwitch']
+            fecha_inicial = dates['rangoDateStart']
+            fecha_final = dates['rangoDateEnd']
+            videos = lectura_intervalo_fechas(fecha_inicial, fecha_final)
+        except:
+            """ Caso en que inputSwitch esta desactivado """
+            """ Se toma el rango de fecha del formulario de mes/año """
+            fecha_inicial = dates['mesDateStart']
+            fecha_final = dates['mesDateEnd']
+            videos = lectura_intervalo_fechas(fecha_inicial, fecha_final)
+
+    """Variables para controlar la paginación"""
+    videos_x_pagina = 10
+    paginator = Paginator(videos, videos_x_pagina)
+
+    page_number = request.query_params.get("page", 1)
+    page = paginator.get_page(page_number)
+
     """Se envian los datos que la página utilizará"""
-    context = {"request": request, "total_paginas": total_paginas, "videos_x_pagina": videos_x_pagina, "total_videos": total_videos, "total_paginas_b": total_paginas_b, "name": name, "tipo": tipo, "nombre_video": nombre_video}
+    context = {"request": request, "name": name, "tipo": tipo, "videos": videos, "fecha_inicial": fecha_inicial, "fecha_final": fecha_final, "paginator": paginator, "page": page, "videos_x_pagina": videos_x_pagina}
+    
     """ Se renderiza página asociada a la busqueda """
     return template.TemplateResponse("busqueda.html", context)
-""" Funcion de consulta para traer los datos del formulario con respecto a las fechas """
-async def consulta(request: Request)->Response:
-    form = await request.form()
-    print(form['dateStart'])
-    print(form['dateEnd'])
-    return PlainTextResponse('Hola Mundo' + form['fecha_inicial'] + ' ' + form['fecha_final'] + ' ' + form['criterio_fecha'] + ' fecha Inicial' + form['dateStart'] + ' fecha final' + form['dateEnd'] + form['mes'])
+
+async def papelera(request: Request) -> Response:
+    name = request.session.get("fullname")
+    tipo = request.session.get("tipo_de_acceso")
+    videos = lectura_total_de_papelera()
+    context = {"request": request, "name": name, "tipo": tipo, "videos": videos}
+    return template.TemplateResponse("papelera.html", context)
+
 """Configuración que recibe el WebGear_RTC con respecto a la fuentes de video """
 options = {"custom_data_location": "./", #Opción para guardar el proyecto en la dirección actual
             "enable_infinite_frames": True, #Se mostrarán frames en caso de que la conexion con las cámaras se cierre 
@@ -392,7 +523,12 @@ web.routes.append(Route("/camaras", endpoint=camaras, methods=["GET", "POST"]))
 web.routes.append(Route("/ondemand", endpoint=ondemand, methods=["GET", "POST"]))
 web.routes.append(Route("/ondemand/busqueda", endpoint=busqueda, methods=["GET", "POST"]))
 web.routes.append(Route("/video_streaming", endpoint=video_streaming, methods=["GET", "POST"]))
-web.routes.append(Route("/consulta", endpoint=consulta, methods=["GET", "POST"]))
+web.routes.append(Route("/image_response", endpoint=image_response, methods=["GET", "POST"]))
+web.routes.append(Route("/video_download", endpoint=video_download, methods=["GET", "POST"]))
+web.routes.append(Route("/mover_a_papelera", endpoint=mover_a_papelera, methods=["GET", "POST"]))
+web.routes.append(Route("/papelera", endpoint=papelera, methods=["GET", "POST"]))
+web.routes.append(Route("/eliminar_video", endpoint=eliminar_video, methods=["GET", "POST"]))
+web.routes.append(Route("/restaurar_video", endpoint=restaurar_video, methods=["GET", "POST"]))
 web.routes.append(Route("/login", endpoint=login, methods=["GET", "POST"]))
 web.routes.append(Route("/dashboard", endpoint=dashboard, methods=["GET", "POST"]))
 web.routes.append(Route("/update/{usuario_id:int}/", endpoint=update, methods=["GET", "POST"]))
